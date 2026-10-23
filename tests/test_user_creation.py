@@ -3,7 +3,18 @@ import pytest
 import allure
 from uuid import uuid4
 
-BASE_URL = "https://qa-stellarburgers.education-services.ru"
+from constants import AUTH_REGISTER, AUTH_USER
+
+
+@allure.step("Регистрируем пользователя")
+def register_user(payload):
+    return requests.post(AUTH_REGISTER, json=payload)
+
+
+@allure.step("Удаляем пользователя")
+def delete_user(access_token):
+    headers = {"Authorization": access_token}
+    return requests.delete(AUTH_USER, headers=headers)
 
 
 class TestUserCreation:
@@ -15,18 +26,17 @@ class TestUserCreation:
 
     def teardown_method(self):
         if self.access_token:
-            headers = {"Authorization": self.access_token}
-            requests.delete(f"{BASE_URL}/api/auth/user", headers=headers)
+            delete_user(self.access_token)
 
     @allure.title("Создание уникального пользователя")
     def test_create_unique_user(self):
         payload = {
             "email": self.email,
             "password": self.password,
-            "name": self.name
+            "name": self.name,
         }
 
-        response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
+        response = register_user(payload)
 
         assert response.status_code == 200
         body = response.json()
@@ -43,15 +53,13 @@ class TestUserCreation:
         payload = {
             "email": self.email,
             "password": self.password,
-            "name": self.name
+            "name": self.name,
         }
 
-        # Создаём пользователя первый раз
-        first_response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
+        first_response = register_user(payload)
         self.access_token = first_response.json()["accessToken"]
 
-        # Пытаемся создать того же пользователя второй раз
-        response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
+        response = register_user(payload)
 
         assert response.status_code == 403
         body = response.json()
@@ -64,11 +72,11 @@ class TestUserCreation:
         payload = {
             "email": self.email,
             "password": self.password,
-            "name": self.name
+            "name": self.name,
         }
         del payload[missing_field]
 
-        response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
+        response = register_user(payload)
 
         assert response.status_code == 403
         body = response.json()

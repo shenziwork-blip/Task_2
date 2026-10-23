@@ -1,56 +1,46 @@
 import requests
 import allure
-from uuid import uuid4
 
-BASE_URL = "https://qa-stellarburgers.education-services.ru"
+from constants import AUTH_LOGIN, AUTH_USER
+
+
+@allure.step("Логинимся в системе")
+def login_user(payload):
+    return requests.post(AUTH_LOGIN, json=payload)
+
+
+@allure.step("Удаляем пользователя")
+def delete_user(access_token):
+    headers = {"Authorization": access_token}
+    return requests.delete(AUTH_USER, headers=headers)
 
 
 class TestUserLogin:
-    def setup_method(self):
-        self.email = f"login_{uuid4().hex[:8]}@yandex.ru"
-        self.password = "password123"
-        self.name = "Login User"
-        self.access_token = None
-
-        # Создаём пользователя перед тестом
-        payload = {
-            "email": self.email,
-            "password": self.password,
-            "name": self.name
-        }
-        response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
-        self.access_token = response.json()["accessToken"]
-
-    def teardown_method(self):
-        if self.access_token:
-            headers = {"Authorization": self.access_token}
-            requests.delete(f"{BASE_URL}/api/auth/user", headers=headers)
-
     @allure.title("Логин под существующим пользователем")
-    def test_login_existing_user(self):
+    def test_login_existing_user(self, registered_user):
         payload = {
-            "email": self.email,
-            "password": self.password
+            "email": registered_user["email"],
+            "password": registered_user["password"],
         }
 
-        response = requests.post(f"{BASE_URL}/api/auth/login", json=payload)
+        response = login_user(payload)
 
         assert response.status_code == 200
         body = response.json()
         assert body["success"] is True
         assert "accessToken" in body
         assert "refreshToken" in body
-        assert body["user"]["email"] == self.email
-        assert body["user"]["name"] == self.name
+        assert body["user"]["email"] == registered_user["email"]
+        assert body["user"]["name"] == registered_user["name"]
 
     @allure.title("Логин с неверным логином и паролем")
-    def test_login_with_wrong_credentials(self):
+    def test_login_with_wrong_credentials(self, registered_user):
         payload = {
-            "email": "wrong_" + self.email,
-            "password": "wrongpassword"
+            "email": "wrong_" + registered_user["email"],
+            "password": "wrongpassword",
         }
 
-        response = requests.post(f"{BASE_URL}/api/auth/login", json=payload)
+        response = login_user(payload)
 
         assert response.status_code == 401
         body = response.json()

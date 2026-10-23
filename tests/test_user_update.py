@@ -1,63 +1,78 @@
 import requests
 import allure
-import pytest
-from uuid import uuid4
 
-BASE_URL = "https://qa-stellarburgers.education-services.ru"
+from constants import AUTH_USER
+
+
+@allure.step("Обновляем профиль пользователя")
+def update_user(headers, payload):
+    return requests.patch(AUTH_USER, headers=headers, json=payload)
 
 
 class TestUserUpdate:
-    def setup_method(self):
-        self.email = f"update_{uuid4().hex[:8]}@yandex.ru"
-        self.password = "password123"
-        self.name = "Update User"
-        self.access_token = None
+    @allure.title("Изменение имени пользователя с авторизацией")
+    def test_update_user_name_with_auth(self, registered_user):
+        headers = {"Authorization": registered_user["access_token"]}
+        payload = {"name": "New Name"}
 
-        payload = {
-            "email": self.email,
-            "password": self.password,
-            "name": self.name
-        }
-        response = requests.post(f"{BASE_URL}/api/auth/register", json=payload)
-        self.access_token = response.json()["accessToken"]
-
-    def teardown_method(self):
-        if self.access_token:
-            headers = {"Authorization": self.access_token}
-            requests.delete(f"{BASE_URL}/api/auth/user", headers=headers)
-
-    @allure.title("Изменение данных пользователя с авторизацией")
-    @pytest.mark.parametrize("field, new_value", [
-        ("name", "New Name"),
-        ("email", "new_" + uuid4().hex[:6] + "@yandex.ru"),
-        ("password", "newpassword123"),
-    ])
-    def test_update_user_with_auth(self, field, new_value):
-        headers = {"Authorization": self.access_token}
-        payload = {field: new_value}
-
-        response = requests.patch(f"{BASE_URL}/api/auth/user", headers=headers, json=payload)
+        response = update_user(headers, payload)
 
         assert response.status_code == 200
         body = response.json()
         assert body["success"] is True
+        assert body["user"]["name"] == "New Name"
 
-        if field != "password":
-            assert body["user"][field] == new_value
-        else:
-            # Пароль в ответе не возвращается
-            assert "user" in body
+    @allure.title("Изменение email пользователя с авторизацией")
+    def test_update_user_email_with_auth(self, registered_user):
+        headers = {"Authorization": registered_user["access_token"]}
+        payload = {"email": "updated_email@yandex.ru"}
 
-    @allure.title("Изменение данных пользователя без авторизации")
-    @pytest.mark.parametrize("field, new_value", [
-        ("name", "New Name"),
-        ("email", "newemail@yandex.ru"),
-        ("password", "newpassword123"),
-    ])
-    def test_update_user_without_auth(self, field, new_value):
-        payload = {field: new_value}
+        response = update_user(headers, payload)
 
-        response = requests.patch(f"{BASE_URL}/api/auth/user", json=payload)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["success"] is True
+        assert body["user"]["email"] == "updated_email@yandex.ru"
+
+    @allure.title("Изменение пароля пользователя с авторизацией")
+    def test_update_user_password_with_auth(self, registered_user):
+        headers = {"Authorization": registered_user["access_token"]}
+        payload = {"password": "newpassword123"}
+
+        response = update_user(headers, payload)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["success"] is True
+        assert "user" in body
+
+    @allure.title("Изменение имени пользователя без авторизации")
+    def test_update_user_name_without_auth(self, registered_user):
+        payload = {"name": "New Name"}
+
+        response = update_user({}, payload)
+
+        assert response.status_code == 401
+        body = response.json()
+        assert body["success"] is False
+        assert body["message"] == "You should be authorised"
+
+    @allure.title("Изменение email пользователя без авторизации")
+    def test_update_user_email_without_auth(self, registered_user):
+        payload = {"email": "newemail@yandex.ru"}
+
+        response = update_user({}, payload)
+
+        assert response.status_code == 401
+        body = response.json()
+        assert body["success"] is False
+        assert body["message"] == "You should be authorised"
+
+    @allure.title("Изменение пароля пользователя без авторизации")
+    def test_update_user_password_without_auth(self, registered_user):
+        payload = {"password": "newpassword123"}
+
+        response = update_user({}, payload)
 
         assert response.status_code == 401
         body = response.json()
