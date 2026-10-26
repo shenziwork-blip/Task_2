@@ -1,8 +1,7 @@
-import requests
 import pytest
 from uuid import uuid4
 
-from constants import AUTH_REGISTER, AUTH_USER, INGREDIENTS
+from api_helpers import delete_user, get_ingredients, register_user
 
 
 @pytest.fixture
@@ -16,9 +15,7 @@ def registered_user():
         "name": name,
     }
 
-    response = requests.post(AUTH_REGISTER, json=payload)
-    assert response.status_code == 200, response.text
-
+    response = register_user(payload)
     body = response.json()
     access_token = body["accessToken"]
 
@@ -31,14 +28,28 @@ def registered_user():
 
     yield user
 
-    headers = {"Authorization": access_token}
-    requests.delete(AUTH_USER, headers=headers)
+    delete_user(access_token)
 
 
 @pytest.fixture
 def ingredients():
-    response = requests.get(INGREDIENTS)
-    assert response.status_code == 200, response.text
-
+    response = get_ingredients()
     body = response.json()
     return [item["_id"] for item in body["data"][:3]]
+
+
+@pytest.fixture
+def user_payload():
+    return {
+        "email": f"test_{uuid4().hex[:8]}@yandex.ru",
+        "password": "password123",
+        "name": "Test User",
+    }
+
+
+@pytest.fixture
+def cleanup_users():
+    access_tokens = []
+    yield access_tokens.append
+    for access_token in access_tokens:
+        delete_user(access_token)

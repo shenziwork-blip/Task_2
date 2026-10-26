@@ -1,12 +1,6 @@
-import requests
 import allure
 
-from constants import AUTH_USER
-
-
-@allure.step("Обновляем профиль пользователя")
-def update_user(headers, payload):
-    return requests.patch(AUTH_USER, headers=headers, json=payload)
+from api_helpers import update_user
 
 
 class TestUserUpdate:
@@ -25,14 +19,15 @@ class TestUserUpdate:
     @allure.title("Изменение email пользователя с авторизацией")
     def test_update_user_email_with_auth(self, registered_user):
         headers = {"Authorization": registered_user["access_token"]}
-        payload = {"email": "updated_email@yandex.ru"}
+        updated_email = f"updated_{registered_user['email']}"
+        payload = {"email": updated_email}
 
         response = update_user(headers, payload)
 
         assert response.status_code == 200
         body = response.json()
         assert body["success"] is True
-        assert body["user"]["email"] == "updated_email@yandex.ru"
+        assert body["user"]["email"] == updated_email
 
     @allure.title("Изменение пароля пользователя с авторизацией")
     def test_update_user_password_with_auth(self, registered_user):

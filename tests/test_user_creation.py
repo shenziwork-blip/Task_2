@@ -1,65 +1,29 @@
-import requests
 import pytest
 import allure
-from uuid import uuid4
 
-from constants import AUTH_REGISTER, AUTH_USER
-
-
-@allure.step("Регистрируем пользователя")
-def register_user(payload):
-    return requests.post(AUTH_REGISTER, json=payload)
-
-
-@allure.step("Удаляем пользователя")
-def delete_user(access_token):
-    headers = {"Authorization": access_token}
-    return requests.delete(AUTH_USER, headers=headers)
+from api_helpers import register_user
 
 
 class TestUserCreation:
-    def setup_method(self):
-        self.email = f"test_{uuid4().hex[:8]}@yandex.ru"
-        self.password = "password123"
-        self.name = "Test User"
-        self.access_token = None
-
-    def teardown_method(self):
-        if self.access_token:
-            delete_user(self.access_token)
-
     @allure.title("Создание уникального пользователя")
-    def test_create_unique_user(self):
-        payload = {
-            "email": self.email,
-            "password": self.password,
-            "name": self.name,
-        }
-
-        response = register_user(payload)
+    def test_create_unique_user(self, user_payload, cleanup_users):
+        response = register_user(user_payload)
 
         assert response.status_code == 200
         body = response.json()
+        cleanup_users(body["accessToken"])
         assert body["success"] is True
         assert "accessToken" in body
         assert "refreshToken" in body
-        assert body["user"]["email"] == self.email
-        assert body["user"]["name"] == self.name
-
-        self.access_token = body["accessToken"]
+        assert body["user"]["email"] == user_payload["email"]
+        assert body["user"]["name"] == user_payload["name"]
 
     @allure.title("Создание пользователя, который уже зарегистрирован")
-    def test_create_existing_user(self):
-        payload = {
-            "email": self.email,
-            "password": self.password,
-            "name": self.name,
-        }
+    def test_create_existing_user(self, user_payload, cleanup_users):
+        first_response = register_user(user_payload)
+        cleanup_users(first_response.json()["accessToken"])
 
-        first_response = register_user(payload)
-        self.access_token = first_response.json()["accessToken"]
-
-        response = register_user(payload)
+        response = register_user(user_payload)
 
         assert response.status_code == 403
         body = response.json()
@@ -68,12 +32,8 @@ class TestUserCreation:
 
     @allure.title("Создание пользователя без обязательного поля")
     @pytest.mark.parametrize("missing_field", ["email", "password", "name"])
-    def test_create_user_without_required_field(self, missing_field):
-        payload = {
-            "email": self.email,
-            "password": self.password,
-            "name": self.name,
-        }
+    def test_create_user_without_required_field(self, user_payload, missing_field):
+        payload = user_payload.copy()
         del payload[missing_field]
 
         response = register_user(payload)

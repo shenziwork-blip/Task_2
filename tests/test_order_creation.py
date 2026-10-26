@@ -1,12 +1,6 @@
-import requests
 import allure
 
-from constants import ORDERS
-
-
-@allure.step("Создаём заказ")
-def create_order(headers, payload):
-    return requests.post(ORDERS, headers=headers, json=payload)
+from api_helpers import create_order
 
 
 class TestOrderCreation:

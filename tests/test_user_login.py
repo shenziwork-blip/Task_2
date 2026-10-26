@@ -1,18 +1,6 @@
-import requests
 import allure
 
-from constants import AUTH_LOGIN, AUTH_USER
-
-
-@allure.step("Логинимся в системе")
-def login_user(payload):
-    return requests.post(AUTH_LOGIN, json=payload)
-
-
-@allure.step("Удаляем пользователя")
-def delete_user(access_token):
-    headers = {"Authorization": access_token}
-    return requests.delete(AUTH_USER, headers=headers)
+from api_helpers import login_user
 
 
 class TestUserLogin:

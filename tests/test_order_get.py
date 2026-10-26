@@ -1,12 +1,6 @@
-import requests
 import allure
 
-from constants import ORDERS
-
-
-@allure.step("Получаем список заказов")
-def get_orders(headers):
-    return requests.get(ORDERS, headers=headers)
+from api_helpers import get_orders
 
 
 class TestOrderGet:
